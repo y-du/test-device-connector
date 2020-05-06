@@ -23,12 +23,19 @@ import queue
 import threading
 import random
 import datetime
+import sys
+import signal
 
 
 initLogger(dc_conf.Logger.level)
 
 
 logger = getLogger("client")
+
+
+def sigterm_handler(_signo, _stack_frame):
+    logger.warning("sigterm handler {} {}".format(_signo, _stack_frame))
+    sys.exit(0)
 
 
 def printer(d_id, msg):
@@ -132,9 +139,15 @@ for key, device in devices.items():
         sensor = threading.Thread(name="sensor-{}".format(key), target=reader, args=(client, key, "read"), daemon=True)
         sensor.start()
 
-while True:
-    msg = commands.get()
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, sigterm_handler)
     try:
-        devices[msg["device_id"]]["services"][msg["service_id"]](msg["device_id"], msg["data"])
-    except KeyError as ex:
-        logger.error("service {} not found for '{}'".format(ex, msg["device_id"]))
+        while True:
+            msg = commands.get()
+            try:
+                devices[msg["device_id"]]["services"][msg["service_id"]](msg["device_id"], msg["data"])
+            except KeyError as ex:
+                logger.error("service {} not found for '{}'".format(ex, msg["device_id"]))
+    finally:
+        pass
