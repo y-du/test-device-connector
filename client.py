@@ -54,21 +54,21 @@ def reader(client: Client, d_id, s_id):
 devices = {
     "{}-23434fgd".format(EnvVars.ModuleID.value): {
         "name": "Sensor",
-        "device_type": "sensor",
+        "device_type": dc_conf.DeviceTypes.sensor,
         "services": {
             "read": reader
         }
     },
     "{}-4565j89d".format(EnvVars.ModuleID.value): {
         "name": "Actuator",
-        "device_type": "actuator",
+        "device_type": dc_conf.DeviceTypes.actuator,
         "services": {
             "print": printer
         }
     },
     "{}-8ojm564h".format(EnvVars.ModuleID.value): {
         "name": "Sensor Actuator",
-        "device_type": "sensor-actuator",
+        "device_type": dc_conf.DeviceTypes.sensor_actuator,
         "services": {
             "read": reader,
             "print": printer
