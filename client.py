@@ -33,8 +33,8 @@ initLogger(dc_conf.Logger.level)
 logger = getLogger("client")
 
 
-def sigterm_handler(_signo, _stack_frame):
-    logger.warning("sigterm handler {} {}".format(_signo, _stack_frame))
+def sigtermHandler(_signo, _stack_frame):
+    logger.warning("got SIGTERM - exiting ...")
     sys.exit(0)
 
 
@@ -44,7 +44,7 @@ def printer(d_id, msg):
 
 def reader(client: Client, d_id, s_id):
     while True:
-        time.sleep(5)
+        time.sleep(dc_conf.Sensor.delay)
         msg = {
             "temperature": random.uniform(24.0, 25.0),
             "timestamp": '{}Z'.format(datetime.datetime.utcnow().isoformat())
@@ -141,7 +141,7 @@ for key, device in devices.items():
 
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGTERM, sigtermHandler)
     try:
         while True:
             msg = commands.get()

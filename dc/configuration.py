@@ -44,6 +44,9 @@ class TDCConf:
         response_topic = "response"
         keep_alive = 10
 
+    @simple_env_var.section
+    class Sensor:
+        delay = 30
 
 dc_conf = TDCConf()
 
