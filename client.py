@@ -14,7 +14,7 @@
    limitations under the License.
 """
 
-from dc.logger import initLogger
+from dc.logger import initLogger, getLogger
 from dc.configuration import dc_conf, EnvVars
 from dc.mqtt_client import Client
 import json
@@ -28,8 +28,11 @@ import datetime
 initLogger(dc_conf.Logger.level)
 
 
+logger = getLogger("client")
+
+
 def printer(d_id, msg):
-    print("'{}' says: {}".format(d_id, msg))
+    logger.info("'{}' says: {}".format(d_id, msg))
 
 
 def reader(client: Client, d_id, s_id):
@@ -134,4 +137,4 @@ while True:
     try:
         devices[msg["device_id"]]["services"][msg["service_id"]](msg["device_id"], msg["data"])
     except KeyError as ex:
-        print("service {} not found for '{}'".format(ex, msg["device_id"]))
+        logger.error("service {} not found for '{}'".format(ex, msg["device_id"]))
