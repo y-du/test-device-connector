@@ -17,12 +17,11 @@
 from dc.logger import initLogger, getLogger
 from dc.configuration import dc_conf, EnvVars
 from dc.mqtt_client import Client
+from dc.devices import smart_meter
+from dc.devices import smart_plug
 import json
-import time
 import queue
 import threading
-import random
-import datetime
 import sys
 import signal
 
@@ -38,45 +37,6 @@ def sigtermHandler(_signo, _stack_frame):
     sys.exit(0)
 
 
-def printer(d_id, msg):
-    logger.info("'{}' says: {}".format(d_id, msg))
-
-
-def reader(client: Client, d_id, s_id):
-    while True:
-        time.sleep(dc_conf.Sensor.delay)
-        msg = {
-            "temperature": random.uniform(24.0, 25.0),
-            "timestamp": '{}Z'.format(datetime.datetime.utcnow().isoformat())
-        }
-        client.publish("{}/{}/{}".format(dc_conf.Client.event_topic, d_id, s_id), json.dumps(msg), 1)
-
-devices = {
-    "{}-23434fgd".format(EnvVars.ModuleID.value): {
-        "name": "Landis+Gyr E350 (Test)",
-        "device_type": dc_conf.DeviceTypes.sensor,
-        "services": {
-            "read": reader
-        }
-    },
-    "{}-4565j89d".format(EnvVars.ModuleID.value): {
-        "name": "Test On/Off plug",
-        "device_type": dc_conf.DeviceTypes.actuator,
-        "services": {
-            "print": printer
-        }
-    },
-    "{}-8ojm564h".format(EnvVars.ModuleID.value): {
-        "name": "Sir Test Dyson",
-        "device_type": dc_conf.DeviceTypes.sensor_actuator,
-        "services": {
-            "read": reader,
-            "print": printer
-        }
-    }
-}
-
-
 class DeviceState:
     online = "online"
     offline = "offline"
@@ -85,9 +45,6 @@ class DeviceState:
 class Method:
     set = "set"
     delete = "delete"
-
-
-commands = queue.Queue()
 
 
 def setDevice(client: Client, device_id: str, data: dict, method: str, state=None):
@@ -107,6 +64,25 @@ def subDevice(client: Client, device_id: str):
     client.subscribe("{}/{}/+".format(dc_conf.Client.command_topic, device_id), 0)
 
 
+devices = dict()
+
+
+def addToDevices(devices: dict, device: dict):
+    devices[device["id"]] = {
+        "name": device["name"],
+        "device_type": device["device_type"],
+        "services": device["services"]
+    }
+
+
+if dc_conf.Devices.sensor_id:
+    addToDevices(devices, smart_meter.device)
+
+
+if dc_conf.Devices.actuator_id:
+    addToDevices(devices, smart_plug.device)
+
+
 def onConnect(client):
     for key, device in devices.items():
         setDevice(client, key, device, Method.set, DeviceState.online)
@@ -117,14 +93,23 @@ def onDisconnect():
     pass
 
 
+commands = queue.Queue()
+
+
 def onMessage(topic, payload):
     topic = topic.split("/")
     msg = {
         "device_id": topic[1],
         "service_id": topic[2],
-        "data": payload.decode()
+        "cmd": json.loads(payload)
     }
     commands.put(msg)
+
+
+def sender(client: Client, device_id, srv_id, func):
+    while True:
+        data = func()
+        client.publish("{}/{}/{}".format(dc_conf.Client.event_topic, device_id, srv_id), json.dumps(data), 1)
 
 
 client = Client(client_id=EnvVars.ModuleID.value, clean_session=dc_conf.Client.clean_session)
@@ -132,22 +117,32 @@ client.connectClbk = onConnect
 client.disconnectClbk = onDisconnect
 client.messageClbk = onMessage
 
-client.start()
-
-for key, device in devices.items():
-    if "sensor" in device["device_type"]:
-        sensor = threading.Thread(name="sensor-{}".format(key), target=reader, args=(client, key, "read"), daemon=True)
-        sensor.start()
-
 
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, sigtermHandler)
+    client.start()
+    if dc_conf.Devices.sensor_id:
+        thread = threading.Thread(
+            name=smart_meter.device["id"],
+            target=sender,
+            args=(
+            client, smart_meter.device["id"], "getMeasurements", smart_meter.device["services"]["getMeasurements"]),
+            daemon=True
+        )
+        thread.start()
     try:
         while True:
             msg = commands.get()
             try:
-                devices[msg["device_id"]]["services"][msg["service_id"]](msg["device_id"], msg["data"])
+                if msg["cmd"]["data"]:
+                    resp = devices[msg["device_id"]]["services"][msg["service_id"]](**json.loads(msg["cmd"]["data"]))
+                else:
+                    resp = devices[msg["device_id"]]["services"][msg["service_id"]]()
+                msg["cmd"]["data"] = json.dumps(resp)
+                client.publish("{}/{}/{}".format(dc_conf.Client.response_topic, msg["device_id"], msg["service_id"]), json.dumps(msg["cmd"]), 1)
             except KeyError as ex:
                 logger.error("service {} not found for '{}'".format(ex, msg["device_id"]))
+            except Exception as ex:
+                logger.error("error handling command - {}".format(ex))
     finally:
         pass
