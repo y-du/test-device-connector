@@ -57,8 +57,11 @@ class TDCConf:
     @simple_env_var.section
     class Devices:
         actuator_id = None
+        actuator_name = None
         sensor_id = None
+        sensor_name = None
         sensor_actuator_id = None
+        sensor_actuator_name = None
 
 
 dc_conf = TDCConf()
