@@ -46,7 +46,7 @@ def setPower(power):
 
 device = {
     "id": "{}-{}".format(EnvVars.ModuleID.value, dc_conf.Devices.actuator_id),
-    "name": "Test On/Off plug",
+    "name": dc_conf.Devices.actuator_name,
     "device_type": dc_conf.DeviceTypes.actuator,
     "services": {
         "getStatus": getStatus,
