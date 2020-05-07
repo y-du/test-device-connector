@@ -43,7 +43,7 @@ def getMeasurements():
 
 device = {
     "id": "{}-{}".format(EnvVars.ModuleID.value, dc_conf.Devices.sensor_id),
-    "name": "Landis+Gyr E350 (Test)",
+    "name": dc_conf.Devices.sensor_name,
     "device_type": dc_conf.DeviceTypes.sensor,
     "services": {
         "getMeasurements": getMeasurements
