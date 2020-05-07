@@ -14,11 +14,13 @@
    limitations under the License.
 """
 
+
 from dc.logger import initLogger, getLogger
 from dc.configuration import dc_conf, EnvVars
 from dc.mqtt_client import Client
 from dc.devices import smart_meter
 from dc.devices import smart_plug
+from dc.devices import smart_fan
 import json
 import queue
 import threading
@@ -83,6 +85,21 @@ if dc_conf.Devices.actuator_id:
     addToDevices(devices, smart_plug.device)
 
 
+if dc_conf.Devices.sensor_actuator_id:
+    addToDevices(devices, smart_fan.device)
+
+
+for key, value in devices.items():
+    logger.info(
+        "device_id='{}' name='{}' device_type='{}' services='{}'".format(
+            key,
+            value["name"],
+            value["device_type"],
+            value["services"].keys()
+        )
+    )
+
+
 def onConnect(client):
     for key, device in devices.items():
         setDevice(client, key, device, Method.set, DeviceState.online)
@@ -125,8 +142,15 @@ if __name__ == "__main__":
         thread = threading.Thread(
             name=smart_meter.device["id"],
             target=sender,
-            args=(
-            client, smart_meter.device["id"], "getMeasurements", smart_meter.device["services"]["getMeasurements"]),
+            args=(client, smart_meter.device["id"], "getMeasurements", smart_meter.device["services"]["getMeasurements"]),
+            daemon=True
+        )
+        thread.start()
+    if dc_conf.Devices.sensor_actuator_id:
+        thread = threading.Thread(
+            name=smart_fan.device["id"],
+            target=sender,
+            args=(client, smart_fan.device["id"], "getSensorReadings", smart_fan.device["services"]["getSensorReadings"]),
             daemon=True
         )
         thread.start()
