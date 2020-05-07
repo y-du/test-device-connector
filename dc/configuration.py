@@ -46,13 +46,20 @@ class TDCConf:
 
     @simple_env_var.section
     class Sensor:
-        delay = 30
+        delay = 10
 
     @simple_env_var.section
     class DeviceTypes:
         actuator = None
         sensor = None
         sensor_actuator = None
+
+    @simple_env_var.section
+    class Devices:
+        actuator_id = None
+        sensor_id = None
+        sensor_actuator_id = None
+
 
 dc_conf = TDCConf()
 
